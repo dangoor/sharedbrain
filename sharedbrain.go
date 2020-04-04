@@ -2,7 +2,14 @@ package main
 
 import (
 	"flag"
+	wikilinks "github.com/dangoor/goldmark-wikilinks"
+	"github.com/yuin/goldmark"
+	"github.com/yuin/goldmark/extension"
+	"github.com/yuin/goldmark/parser"
+	"github.com/yuin/goldmark/renderer/html"
+	"github.com/yuin/goldmark/util"
 	"log"
+	"sharedbrain/filecollector"
 
 	"github.com/FooSoft/goldsmith"
 	"github.com/FooSoft/goldsmith-components/devserver"
@@ -18,12 +25,24 @@ type builder struct {
 }
 
 func (b *builder) Build(srcDir, dstDir, cacheDir string) {
+	fc := filecollector.New()
+	wl := wikilinks.NewWikilinksParser().WithNormalizer(fc)
+ 	md := goldmark.New(
+		goldmark.WithExtensions(extension.GFM, extension.Typographer),
+		goldmark.WithParserOptions(parser.WithAutoHeadingID(),
+			parser.WithInlineParsers(util.Prioritized(wl, 102)),
+		),
+		goldmark.WithRendererOptions(html.WithUnsafe()),
+	)
+
 	errs := goldsmith.
 		Begin(srcDir).                     // read files from srcDir
-		Cache(cacheDir).
+		Chain(fc).
 		Chain(frontmatter.New()).          // extract frontmatter and store it as metadata
-		Chain(markdown.New()).             // convert *.md files to *.html files
-		Chain(layout.New()).               // apply *.gohtml templates to *.html files
+		Chain(markdown.New().			   // convert *.md files to *.html files
+			WithGoldmark(md)).
+		Chain(layout.New().				   // apply *.gohtml templates to *.html files
+			DefaultLayout("page")).
 		FilterPush(condition.New(b.dist)). // push a dist-only conditional filter onto the stack
 		Chain(minify.New()).               // minify *.html, *.css, *.js, etc. files
 		FilterPop().                       // pop off the last filter pushed onto the stack

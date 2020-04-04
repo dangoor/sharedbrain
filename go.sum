@@ -16,8 +16,10 @@ github.com/andybalholm/cascadia v1.0.0/go.mod h1:GsXiBklL0woXo1j/WYWtSYYC4ouU9Pq
 github.com/bmatcuk/doublestar v1.2.2 h1:oC24CykoSAB8zd7XgruHo33E0cHJf/WhQA/7BeXj+x0=
 github.com/bmatcuk/doublestar v1.2.2/go.mod h1:wiQtGV+rzVYxB7WIlirSN++5HPtPlXEo9MEoZQC/PmE=
 github.com/daaku/go.zipexe v1.0.0/go.mod h1:z8IiR6TsVLEYKwXAoE/I+8ys/sDkgTzSL0CLnGVd57E=
-github.com/dangoor/goldsmith-components v0.0.0-20200104202821-30d6c81c22ec h1:FkugD2nFH65XPVg1MIg19QsLMm+6P91wSeeSLoIAF1k=
-github.com/dangoor/goldsmith-components v0.0.0-20200104202821-30d6c81c22ec/go.mod h1:LnHHq7GHsxATtVpS5ndB4g/NaENEJttpXY5Qs6oZ3VI=
+github.com/dangoor/goldmark-wikilinks v0.0.0-20200328202359-1f43a0db702d h1:QJVeWVv6hkbGpFA0ukPPH0r0NYdd66Ms5LoXluqvqm8=
+github.com/dangoor/goldmark-wikilinks v0.0.0-20200328202359-1f43a0db702d/go.mod h1:+X/GZ6BaSbDypwlZf6Uf/faUyma6WnY+fSVfVU29izw=
+github.com/dangoor/goldsmith-components v0.0.0-20200328165034-2c3e6e248684 h1:x4PJVJmbC5XPz1wA/CbIn6/UZNfNs6O9x6j5unA1T9Y=
+github.com/dangoor/goldsmith-components v0.0.0-20200328165034-2c3e6e248684/go.mod h1:LnHHq7GHsxATtVpS5ndB4g/NaENEJttpXY5Qs6oZ3VI=
 github.com/danwakefield/fnmatch v0.0.0-20160403171240-cbb64ac3d964/go.mod h1:Xd9hchkHSWYkEqJwUGisez3G1QY8Ryz0sdWrLPMGjLk=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
@@ -63,6 +65,8 @@ github.com/valyala/bytebufferpool v1.0.0/go.mod h1:6bBcMArwyJ5K/AmCkWv1jt77kVWyC
 github.com/valyala/fasttemplate v1.0.1/go.mod h1:UQGH1tvbgY+Nz5t2n7tXsz52dQxojPUpymEIMZ47gx8=
 github.com/yuin/goldmark v1.1.20 h1:WZzdEFW2cYKjlc9wvNRh1+t2n7m8h+g0mB0ssg9nzHQ=
 github.com/yuin/goldmark v1.1.20/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
+github.com/yuin/goldmark v1.1.25 h1:isv+Q6HQAmmL2Ofcmg8QauBmDPlUUnSoNhEcC940Rds=
+github.com/yuin/goldmark v1.1.25/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
 golang.org/x/crypto v0.0.0-20190308221718-c2843e01d9a2/go.mod h1:djNgcEr1/C05ACkg1iLfiJU5Ep61QUkGW8qpdssI0+w=
 golang.org/x/net v0.0.0-20180218175443-cbe0f9307d01/go.mod h1:mL1N/T3taQHkDXs73rZJwtUhF3w3ftmwwsq0BUmARs4=
 golang.org/x/net v0.0.0-20181114220301-adae6a3d119a/go.mod h1:mL1N/T3taQHkDXs73rZJwtUhF3w3ftmwwsq0BUmARs4=
