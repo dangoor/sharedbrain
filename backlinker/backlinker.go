@@ -21,19 +21,25 @@ import (
 	"time"
 )
 
+// backlink is a link to a given markdownFile from another
 type backlink struct {
 	OtherFile *markdownFile
 	Context string
 }
 
+// markdownFile is the fundamental unit that this code works with.
+// It's a single markdown file on disk.
 type markdownFile struct {
-	OriginalName string
-	Title string
+	OriginalName string     // I use lower case to look up files consistently,
+	   						// but want to remember the original case.
+	Title string			// Title defaults to a variation of the filename but can be overridden
+							// in metadata.
 	BackLinks []backlink
 	IsNew bool
 	newData *bytes.Buffer
 }
 
+// getFileList retrieves the list of markdown filenames for the source directory.
 func getFileList(sourceDir string) ([]string, error) {
 	result := make([]string, 0)
 	fileInfos, err := ioutil.ReadDir(sourceDir)
@@ -49,6 +55,7 @@ func getFileList(sourceDir string) ([]string, error) {
 	return result, nil
 }
 
+// createMarkdownFile safely creates a markdownFile struct
 func createMarkdownFile(originalFileName string, isNew bool) *markdownFile {
 	return &markdownFile{
 		OriginalName: originalFileName,
@@ -59,6 +66,8 @@ func createMarkdownFile(originalFileName string, isNew bool) *markdownFile {
 	}
 }
 
+// createFileMapping takes a list of filenames (found via getFileList)
+// and returns a map from lower case filename to *markdownFile
 func createFileMapping(files []string) map[string]*markdownFile {
 	result := make(map[string]*markdownFile)
 	for _, filename := range files {
@@ -68,11 +77,16 @@ func createFileMapping(files []string) map[string]*markdownFile {
 	return result
 }
 
+// backlinkCollector is a goldmark-wikilinks plugin to (surprise!) collect backlinks.
+// When each file is processed, it keeps track of the file being processed and has
+// access to the mapping of other files.
 type backlinkCollector struct {
 	currentFile *markdownFile
 	fileMap map[string]*markdownFile
 }
 
+// LinkWithContext fulfills the goldmark-wikilinks tracker interface to keep track
+// of each wiki-style link that's discovered.
 func (blc backlinkCollector) LinkWithContext(destText string, destFilename string, context string) {
 	destFile, exists := blc.fileMap[destFilename]
 	if !exists {
@@ -85,10 +99,17 @@ func (blc backlinkCollector) LinkWithContext(destText string, destFilename strin
 	})
 }
 
+// Normalize fulfills the goldmark-wikilinks file normalizer interface to make sure links
+// can point to the correct file, regardless of how the link is written. File lookups in
+// this code are all done with a lower case name.
 func (blc backlinkCollector) Normalize(linkText string) string {
 	return strings.ToLower(linkText) + ".md"
 }
 
+// collectBacklinksForFile parses the file with Goldmark and tracks all of the links found
+// in order to accumulate the backlinks.
+// Goldmark isn't used for generating HTML (Hugo does that), but I need to use a proper
+// parser in order to be able to get the context of each link that's discovered.
 func collectBacklinksForFile(fileMap map[string]*markdownFile, currentFile *markdownFile, filetext []byte) {
 	blc := backlinkCollector{
 		currentFile: currentFile,
@@ -105,6 +126,8 @@ func collectBacklinksForFile(fileMap map[string]*markdownFile, currentFile *mark
 	md.Parser().Parse(reader)
 }
 
+// collectBacklinks loops through all of the files in the directory, parses each one,
+// and gathers the backlinks from that parsing.
 func collectBacklinks(sourceDir string, fileMap map[string]*markdownFile) error {
 	for _, file := range fileMap {
 		if file.IsNew {
@@ -121,6 +144,13 @@ func collectBacklinks(sourceDir string, fileMap map[string]*markdownFile) error 
 	return nil
 }
 
+// adjustFrontmatter will parse the frontmatter block (if present) and gather the TOML
+// metadata. It pulls out the title and applies it to the *markdownFile.
+// If the file being processed has a filename that's just a date, that date is inserted into
+// the frontmatter.
+// The string returned is the first line of text pulled from the scanner (because sometimes
+// there's no frontmatter to parse and the line has been pulled from the scanner which needs
+// to be used later)
 func adjustFrontmatter(file *markdownFile, scanner *bufio.Scanner, writer io.Writer) (string, error) {
 	var front bytes.Buffer
 	first := true
@@ -201,10 +231,14 @@ func adjustFrontmatter(file *markdownFile, scanner *bufio.Scanner, writer io.Wri
 	return line, nil
 }
 
+// removeExtension is a simple utility that safely trims the extension from the filename
 func removeExtension(filename string) string {
 	return strings.TrimSuffix(filename, path.Ext(filename))
 }
 
+// createHugoLink reformats a filename the way hugo does for it's links.
+// Hugo links will be to a sibling directory, with a lower case name, and spaces replaced
+// with hyphens.
 func createHugoLink(filename string) string {
 	name := removeExtension(filename)
 	name = strings.ToLower(name)
@@ -212,6 +246,8 @@ func createHugoLink(filename string) string {
 	return "../" + name + "/"
 }
 
+// convertLinksOnLine does a simple regex-based replacement of wikilinks on a single line
+// of markdown text. Each wikilink is replaced by a standard markdown link.
 func convertLinksOnLine(line string, fileMap map[string]*markdownFile) string {
 	replacer := func(s string) string {
 		linkText := s[2:len(s)-2]
@@ -229,7 +265,8 @@ func convertLinksOnLine(line string, fileMap map[string]*markdownFile) string {
 	return re.ReplaceAllStringFunc(line, replacer)
 }
 
-
+// convertLinks consumes the file through the scanner, replacing all of the wikilinks in
+// the file with the proper markdown links.
 func convertLinks(firstLine string, scanner *bufio.Scanner, fileMap map[string]*markdownFile,
 	writer io.Writer) error {
 	if firstLine != "" {
@@ -254,6 +291,8 @@ func convertLinks(firstLine string, scanner *bufio.Scanner, fileMap map[string]*
 	return nil
 }
 
+// addBacklinks tacks additional markdown onto the file with the collection of backlink
+// references.
 func addBacklinks(file *markdownFile, fileMap map[string]*markdownFile, writer io.Writer) error {
 	if len(file.BackLinks) == 0 {
 		return nil
@@ -273,6 +312,8 @@ func addBacklinks(file *markdownFile, fileMap map[string]*markdownFile, writer i
 	return nil
 }
 
+// generateFileData steps through all of the files and reads in their data, converting
+// wikilinks and adding backlinks
 func generateFileData(sourceDir string, fileMap map[string]*markdownFile) error {
 	for _, file := range fileMap {
 		file.newData = bytes.NewBuffer([]byte{})
@@ -311,6 +352,8 @@ func generateFileData(sourceDir string, fileMap map[string]*markdownFile) error 
 	return nil
 }
 
+// writeFiles takes the fully processed fileMap and simply writes all of the new files
+// to disk
 func writeFiles(destDir string, fileMap map[string]*markdownFile) error {
 	for _, file := range fileMap {
 		writer, err := os.Create(path.Join(destDir, file.OriginalName))
@@ -335,11 +378,11 @@ func writeFiles(destDir string, fileMap map[string]*markdownFile) error {
 // There are four steps:
 // 1. Collect filenames so that link case can be normalized
 // 2. Parse the file with goldmark to collect the backlinks and their context
-// 3. Write out the new file:
+// 3. Write out the new file, including files that are only backlinks because they have no
+//    content of their own:
 //    a. Adjusted frontmatter
 //    b. Text with links changed
 //    c. Backlinks
-// 4. Generate stub pages for those cases in which there is no existing page
 func ProcessBackLinks(sourceDir string, destDir string) error {
 	files, err := getFileList(sourceDir)
 	if err != nil {
