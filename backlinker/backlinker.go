@@ -24,22 +24,25 @@ import (
 // backlink is a link to a given markdownFile from another
 type backlink struct {
 	OtherFile *markdownFile
-	Context string
+	Context   string
 }
 
 // markdownFile is the fundamental unit that this code works with.
 // It's a single markdown file on disk.
 type markdownFile struct {
-	OriginalName string     // I use lower case to look up files consistently,
-	   						// but want to remember the original case.
-	Title string			// Title defaults to a variation of the filename but can be overridden
-							// in metadata.
+	// I use lower case to look up files consistently,
+	// but want to remember the original case.
+	OriginalName string
+
+	// Title defaults to a variation of the filename but can be overridden
+	// in metadata.
+	Title     string
 	BackLinks []backlink
-	IsNew bool
-	newData *bytes.Buffer
-	metadata map[string]interface{}
+	IsNew     bool
+	newData   *bytes.Buffer
+	metadata  map[string]interface{}
 	firstLine string
-	scanner *bufio.Scanner
+	scanner   *bufio.Scanner
 }
 
 // getFileList retrieves the list of markdown filenames for the source directory.
@@ -66,7 +69,7 @@ func createMarkdownFile(originalFileName string, isNew bool) *markdownFile {
 		BackLinks:    []backlink{},
 		IsNew:        isNew,
 		newData:      bytes.NewBuffer([]byte{}),
-		metadata: 	  make(map[string]interface{}),
+		metadata:     make(map[string]interface{}),
 	}
 }
 
@@ -86,7 +89,7 @@ func createFileMapping(files []string) map[string]*markdownFile {
 // access to the mapping of other files.
 type backlinkCollector struct {
 	currentFile *markdownFile
-	fileMap map[string]*markdownFile
+	fileMap     map[string]*markdownFile
 }
 
 // LinkWithContext fulfills the goldmark-wikilinks tracker interface to keep track
@@ -94,7 +97,7 @@ type backlinkCollector struct {
 func (blc backlinkCollector) LinkWithContext(destText string, destFilename string, context string) {
 	destFile, exists := blc.fileMap[destFilename]
 	if !exists {
-		destFile = createMarkdownFile(destText + ".md", true)
+		destFile = createMarkdownFile(destText+".md", true)
 		blc.fileMap[destFilename] = destFile
 	}
 	destFile.BackLinks = append(destFile.BackLinks, backlink{
@@ -214,7 +217,7 @@ func adjustFrontmatter(file *markdownFile, writer io.Writer) error {
 		}
 		_, hasDate := meta["date"]
 		if !hasDate {
-			datetime, err := time.Parse(time.RFC3339, plainFilename+ "T21:00:00Z")
+			datetime, err := time.Parse(time.RFC3339, plainFilename+"T21:00:00Z")
 			if err != nil {
 				return err
 			}
@@ -276,12 +279,12 @@ func createHugoLink(filename string) string {
 // of markdown text. Each wikilink is replaced by a standard markdown link.
 func convertLinksOnLine(line string, fileMap map[string]*markdownFile) string {
 	replacer := func(s string) string {
-		linkText := s[2:len(s)-2]
+		linkText := s[2 : len(s)-2]
 
 		expectedMappingName := strings.ToLower(linkText) + ".md"
 		file, exists := fileMap[expectedMappingName]
 		if !exists {
-			file = createMarkdownFile(linkText + ".md", true)
+			file = createMarkdownFile(linkText+".md", true)
 			fileMap[expectedMappingName] = file
 		}
 		linkTo := createHugoLink(file.OriginalName)
@@ -362,7 +365,6 @@ func generateFileData(sourceDir string, fileMap map[string]*markdownFile) error 
 			return err
 		}
 	}
-
 
 	for _, file := range fileMap {
 		err := adjustFrontmatter(file, file.newData)

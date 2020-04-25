@@ -28,9 +28,9 @@ func TestCreateFileMapping(t *testing.T) {
 func TestCollectBacklinksForFile(t *testing.T) {
 	require := require.New(t)
 	fileMap := map[string]*markdownFile{
-		"first.md": {OriginalName: "First.md", BackLinks: make([]backlink, 0)},
+		"first.md":  {OriginalName: "First.md", BackLinks: make([]backlink, 0)},
 		"second.md": {OriginalName: "Second.md", BackLinks: make([]backlink, 0)},
-		"third.md": {OriginalName: "Third.md", BackLinks: make([]backlink, 0)},
+		"third.md":  {OriginalName: "Third.md", BackLinks: make([]backlink, 0)},
 	}
 
 	collectBacklinksForFile(fileMap, fileMap["first.md"], []byte(`
@@ -178,9 +178,9 @@ date = 2019-08-26
 func TestConvertLinksOnLine(t *testing.T) {
 	require := require.New(t)
 	fileMap := map[string]*markdownFile{
-		"first.md": {OriginalName: "First.md", BackLinks: make([]backlink, 0)},
-		"second.md": {OriginalName: "Second.md", BackLinks: make([]backlink, 0)},
-		"third.md": {OriginalName: "Third.md", BackLinks: make([]backlink, 0)},
+		"first.md":            {OriginalName: "First.md", BackLinks: make([]backlink, 0)},
+		"second.md":           {OriginalName: "Second.md", BackLinks: make([]backlink, 0)},
+		"third.md":            {OriginalName: "Third.md", BackLinks: make([]backlink, 0)},
 		"name with spaces.md": createMarkdownFile("Name With Spaces.md", false),
 	}
 	line := "This line links to [[First]] and [[third]] and [[name with spaces]]."
@@ -205,9 +205,9 @@ func TestConvertLinksForUnknownFile(t *testing.T) {
 func TestConvertLinks(t *testing.T) {
 	require := require.New(t)
 	fileMap := map[string]*markdownFile{
-		"first.md": {OriginalName: "First.md", BackLinks: make([]backlink, 0)},
+		"first.md":  {OriginalName: "First.md", BackLinks: make([]backlink, 0)},
 		"second.md": {OriginalName: "Second.md", BackLinks: make([]backlink, 0)},
-		"third.md": {OriginalName: "Third.md", BackLinks: make([]backlink, 0)},
+		"third.md":  {OriginalName: "Third.md", BackLinks: make([]backlink, 0)},
 	}
 	inputText := `## This is a heading
 * And here's a reference to [[Second]] and [[third]]
@@ -236,7 +236,7 @@ func Test_addBacklinks(t *testing.T) {
 	}
 	fileMap["second.md"] = &markdownFile{
 		OriginalName: "Second.md",
-		Title: "Being The Second",
+		Title:        "Being The Second",
 		BackLinks:    make([]backlink, 0),
 	}
 	fileMap["first.md"].BackLinks = append(fileMap["first.md"].BackLinks, backlink{
@@ -250,8 +250,8 @@ func Test_addBacklinks(t *testing.T) {
 		wantErr    bool
 	}{
 		{
-			name:       "Second has empty backlinks",
-			args:       args{
+			name: "Second has empty backlinks",
+			args: args{
 				file:    fileMap["second.md"],
 				fileMap: fileMap,
 			},
@@ -259,8 +259,8 @@ func Test_addBacklinks(t *testing.T) {
 			wantErr:    false,
 		},
 		{
-			name:       "First has a backlink from second",
-			args:       args{
+			name: "First has a backlink from second",
+			args: args{
 				file:    fileMap["first.md"],
 				fileMap: fileMap,
 			},
@@ -270,7 +270,7 @@ func Test_addBacklinks(t *testing.T) {
 * [Being The Second](../second/)
     * This has a [first](../first/) link.
 `,
-			wantErr:    false,
+			wantErr: false,
 		},
 	}
 	for _, tt := range tests {
