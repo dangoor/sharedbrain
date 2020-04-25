@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestCreateFileMapping(t *testing.T) {
@@ -59,10 +60,9 @@ func TestNoFrontmatterReturnsFirstLine(t *testing.T) {
 	}
 	scanner := bufio.NewScanner(strings.NewReader(`This is the first line
 This is the second`))
-	writer := bytes.Buffer{}
-	firstLine, err := adjustFrontmatter(&file, scanner, &writer)
+	err := extractFrontmatter(&file, scanner)
 	require.Nil(err)
-	require.Equal("This is the first line", firstLine)
+	require.Equal("This is the first line", file.firstLine)
 }
 
 func TestFrontmatterMayPassThroughUnchanged(t *testing.T) {
@@ -78,9 +78,11 @@ date = 2019-08-26T19:34:48-04:00
 `
 	scanner := bufio.NewScanner(strings.NewReader(inputText))
 	writer := bytes.Buffer{}
-	firstLine, err := adjustFrontmatter(&file, scanner, &writer)
+	file.scanner = scanner
+	err := extractFrontmatter(&file, scanner)
+	err = adjustFrontmatter(&file, &writer)
 	require.Nil(err)
-	require.Equal("", firstLine)
+	require.Equal("", file.firstLine)
 	output := writer.String()
 	require.Contains(output, "date = 2019-08-26T19:34:48")
 	require.Contains(output, "title = \"There's")
@@ -100,13 +102,54 @@ func TestFrontmatterForDatePages(t *testing.T) {
 `
 	scanner := bufio.NewScanner(strings.NewReader(inputText))
 	writer := bytes.Buffer{}
-	firstLine, err := adjustFrontmatter(&file, scanner, &writer)
+	file.scanner = scanner
+	err := extractFrontmatter(&file, scanner)
 	require.Nil(err)
-	require.Equal("## This is an example", firstLine)
+	err = adjustFrontmatter(&file, &writer)
+	require.Nil(err)
+	require.Equal("## This is an example", file.firstLine)
 	output := writer.String()
 	require.True(strings.HasPrefix(output, "+++\n"))
 	require.Contains(output, "date = 2020-04-19T21:00:00Z\n")
 	require.Contains(output, "title = \"2020-04-19\"\n")
+}
+
+func TestDateAddedBasedOnBacklinks(t *testing.T) {
+	require := require.New(t)
+	timestamp, _ := time.Parse(time.RFC3339, "2020-04-25T19:00:00Z")
+	otherFile := markdownFile{
+		OriginalName: "2020-04-25.md",
+		metadata: map[string]interface{}{
+			"date": timestamp,
+		},
+	}
+	file := createMarkdownFile("Unknown.md", true)
+	file.BackLinks = append(file.BackLinks, backlink{
+		OtherFile: &otherFile,
+		Context:   "Linking to [[Unknown]]",
+	})
+	writer := bytes.Buffer{}
+	err := adjustFrontmatter(file, &writer)
+	require.Nil(err)
+	output := writer.String()
+	require.True(strings.HasPrefix(output, "+++\n"))
+	require.Contains(output, "date = 2020-04-25T19:00:00Z\n")
+}
+
+func TestNoDateAddedIfBacklinkHasNoDate(t *testing.T) {
+	require := require.New(t)
+	otherFile := createMarkdownFile("NotImportant.md", false)
+	file := createMarkdownFile("Unknown.md", true)
+	file.BackLinks = append(file.BackLinks, backlink{
+		OtherFile: otherFile,
+		Context:   "Linking to [[Unknown]]",
+	})
+	writer := bytes.Buffer{}
+	err := adjustFrontmatter(file, &writer)
+	require.Nil(err)
+	output := writer.String()
+	require.True(strings.HasPrefix(output, "+++\n"))
+	require.NotContains(output, "date\n")
 }
 
 func TestFrontmatterWithSimplifiedDate(t *testing.T) {
@@ -122,14 +165,15 @@ date = 2019-08-26
 `
 	scanner := bufio.NewScanner(strings.NewReader(inputText))
 	writer := bytes.Buffer{}
-	firstLine, err := adjustFrontmatter(&file, scanner, &writer)
+	file.scanner = scanner
+	err := extractFrontmatter(&file, file.scanner)
 	require.Nil(err)
-	require.Equal("", firstLine)
+	err = adjustFrontmatter(&file, &writer)
+	require.Nil(err)
+	require.Equal("", file.firstLine)
 	output := writer.String()
 	require.Contains(output, "date = 2019-08-26T00:00:00Z")
 }
-
-// TODO test backlinks for non-existing files
 
 func TestConvertLinksOnLine(t *testing.T) {
 	require := require.New(t)

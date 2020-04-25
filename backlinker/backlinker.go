@@ -37,6 +37,9 @@ type markdownFile struct {
 	BackLinks []backlink
 	IsNew bool
 	newData *bytes.Buffer
+	metadata map[string]interface{}
+	firstLine string
+	scanner *bufio.Scanner
 }
 
 // getFileList retrieves the list of markdown filenames for the source directory.
@@ -63,6 +66,7 @@ func createMarkdownFile(originalFileName string, isNew bool) *markdownFile {
 		BackLinks:    []backlink{},
 		IsNew:        isNew,
 		newData:      bytes.NewBuffer([]byte{}),
+		metadata: 	  make(map[string]interface{}),
 	}
 }
 
@@ -144,14 +148,9 @@ func collectBacklinks(sourceDir string, fileMap map[string]*markdownFile) error 
 	return nil
 }
 
-// adjustFrontmatter will parse the frontmatter block (if present) and gather the TOML
-// metadata. It pulls out the title and applies it to the *markdownFile.
-// If the file being processed has a filename that's just a date, that date is inserted into
-// the frontmatter.
-// The string returned is the first line of text pulled from the scanner (because sometimes
-// there's no frontmatter to parse and the line has been pulled from the scanner which needs
-// to be used later)
-func adjustFrontmatter(file *markdownFile, scanner *bufio.Scanner, writer io.Writer) (string, error) {
+// extractFrontmatter reads the frontmatter from the file and adds it as the metadata property on
+// the `file` struct. It returns the first line of the file, in case there is no frontmatter.
+func extractFrontmatter(file *markdownFile, scanner *bufio.Scanner) error {
 	var front bytes.Buffer
 	first := true
 	noMeta := false
@@ -175,22 +174,36 @@ func adjustFrontmatter(file *markdownFile, scanner *bufio.Scanner, writer io.Wri
 	}
 	err := scanner.Err()
 	if err != nil {
-		return "", err
+		return err
 	}
 	if !first && !noMeta && !foundEnd {
-		return "", errors.New("no end tag found in frontmatter")
+		return errors.New("no end tag found in frontmatter")
 	}
 	meta := make(map[string]interface{})
 	if !noMeta {
 		err = toml.Unmarshal(front.Bytes(), meta)
 		if err != nil {
-			return "", err
+			return err
 		}
 	}
+	file.metadata = meta
+	if !noMeta {
+		line = ""
+	}
+	file.firstLine = line
+	return nil
+}
+
+// adjustFrontmatter will parse the frontmatter block (if present) and gather the TOML
+// metadata. It pulls out the title and applies it to the *markdownFile.
+// If the file being processed has a filename that's just a date, that date is inserted into
+// the frontmatter.
+func adjustFrontmatter(file *markdownFile, writer io.Writer) error {
+	meta := file.metadata
 
 	isDateFile, err := regexp.MatchString(`\d\d\d\d-\d\d-\d\d.md`, file.OriginalName)
 	if err != nil {
-		return "", err
+		return err
 	}
 
 	if isDateFile {
@@ -203,7 +216,7 @@ func adjustFrontmatter(file *markdownFile, scanner *bufio.Scanner, writer io.Wri
 		if !hasDate {
 			datetime, err := time.Parse(time.RFC3339, plainFilename+ "T21:00:00Z")
 			if err != nil {
-				return "", err
+				return err
 			}
 			meta["date"] = datetime
 		}
@@ -216,19 +229,32 @@ func adjustFrontmatter(file *markdownFile, scanner *bufio.Scanner, writer io.Wri
 		meta["title"] = file.Title
 	}
 
+	if meta["date"] == nil {
+		var latest time.Time
+		for _, backlink := range file.BackLinks {
+			otherDateInt, hasDate := backlink.OtherFile.metadata["date"]
+			if !hasDate {
+				continue
+			}
+			otherDate := otherDateInt.(time.Time)
+			if otherDate.After(latest) {
+				latest = otherDate
+			}
+		}
+		if latest.Unix() > 0 {
+			meta["date"] = latest
+		}
+	}
+
 	updatedMeta, err := toml.Marshal(meta)
 	if err != nil {
-		return "", err
+		return err
 	}
 	writer.Write([]byte("+++\n"))
 	writer.Write(updatedMeta)
 	writer.Write([]byte("+++\n"))
 
-	if !noMeta {
-		line = ""
-	}
-
-	return line, nil
+	return nil
 }
 
 // removeExtension is a simple utility that safely trims the extension from the filename
@@ -330,11 +356,20 @@ func generateFileData(sourceDir string, fileMap map[string]*markdownFile) error 
 			}
 			scanner = bufio.NewScanner(fileOnDisk)
 		}
-		line, err := adjustFrontmatter(file, scanner, file.newData)
+		file.scanner = scanner
+		err := extractFrontmatter(file, scanner)
 		if err != nil {
 			return err
 		}
-		err = convertLinks(line, scanner, fileMap, file.newData)
+	}
+
+
+	for _, file := range fileMap {
+		err := adjustFrontmatter(file, file.newData)
+		if err != nil {
+			return err
+		}
+		err = convertLinks(file.firstLine, file.scanner, fileMap, file.newData)
 		if err != nil {
 			return err
 		}
