@@ -205,6 +205,13 @@ func removeExtension(filename string) string {
 	return strings.TrimSuffix(filename, path.Ext(filename))
 }
 
+func createHugoLink(filename string) string {
+	name := removeExtension(filename)
+	name = strings.ToLower(name)
+	name = strings.ReplaceAll(name, " ", "-")
+	return "../" + name + "/"
+}
+
 func convertLinksOnLine(line string, fileMap map[string]*markdownFile) string {
 	replacer := func(s string) string {
 		linkText := s[2:len(s)-2]
@@ -215,7 +222,7 @@ func convertLinksOnLine(line string, fileMap map[string]*markdownFile) string {
 			file = createMarkdownFile(linkText + ".md", true)
 			fileMap[expectedMappingName] = file
 		}
-		linkTo := removeExtension(file.OriginalName) + "/"
+		linkTo := createHugoLink(file.OriginalName)
 		return fmt.Sprintf("[%s](%s)", linkText, linkTo)
 	}
 	re := regexp.MustCompile(`\[\[[^\]]+\]\]`)
@@ -257,7 +264,7 @@ func addBacklinks(file *markdownFile, fileMap map[string]*markdownFile, writer i
 `))
 	for _, backlink := range file.BackLinks {
 		title := backlink.OtherFile.Title
-		link := removeExtension(backlink.OtherFile.OriginalName) + "/"
+		link := createHugoLink(backlink.OtherFile.OriginalName)
 		context := convertLinksOnLine(backlink.Context, fileMap)
 		writer.Write([]byte(fmt.Sprintf(`* [%s](%s)
     * %s

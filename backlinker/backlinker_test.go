@@ -137,10 +137,11 @@ func TestConvertLinksOnLine(t *testing.T) {
 		"first.md": {OriginalName: "First.md", BackLinks: make([]backlink, 0)},
 		"second.md": {OriginalName: "Second.md", BackLinks: make([]backlink, 0)},
 		"third.md": {OriginalName: "Third.md", BackLinks: make([]backlink, 0)},
+		"name with spaces.md": createMarkdownFile("Name With Spaces.md", false),
 	}
-	line := "This line links to [[First]] and [[third]]."
+	line := "This line links to [[First]] and [[third]] and [[name with spaces]]."
 	result := convertLinksOnLine(line, fileMap)
-	require.Equal("This line links to [First](First/) and [third](Third/).", result)
+	require.Equal("This line links to [First](../first/) and [third](../third/) and [name with spaces](../name-with-spaces/).", result)
 }
 
 func TestConvertLinksForUnknownFile(t *testing.T) {
@@ -150,7 +151,7 @@ func TestConvertLinksForUnknownFile(t *testing.T) {
 	}
 	line := "This line links to [[Unknown]]!"
 	result := convertLinksOnLine(line, fileMap)
-	require.Equal("This line links to [Unknown](Unknown/)!", result)
+	require.Equal("This line links to [Unknown](../unknown/)!", result)
 	unknown, exists := fileMap["unknown.md"]
 	require.True(exists, "Unknown file should have been created")
 	require.Equal("Unknown.md", unknown.OriginalName)
@@ -174,8 +175,8 @@ func TestConvertLinks(t *testing.T) {
 	require.Nil(err)
 	output := writer.String()
 	require.Equal(`## This is a heading
-* And here's a reference to [Second](Second/) and [third](Third/)
-* And another [second](Second/)
+* And here's a reference to [Second](../second/) and [third](../third/)
+* And another [second](../second/)
 `, output)
 }
 
@@ -222,8 +223,8 @@ func Test_addBacklinks(t *testing.T) {
 			wantWriter: `
 ## Backlinks
 
-* [Being The Second](Second/)
-    * This has a [first](First/) link.
+* [Being The Second](../second/)
+    * This has a [first](../first/) link.
 `,
 			wantErr:    false,
 		},
