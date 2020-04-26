@@ -3,17 +3,18 @@ package backlinker
 import (
 	"bufio"
 	"bytes"
-	"github.com/stretchr/testify/require"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestCreateFileMapping(t *testing.T) {
 	require := require.New(t)
-	files := []string{"First.md", "Second.md", "third.md"}
+	files := []string{"First.md", "Second.md", "third.md", "2020-04-26.md"}
 	result := createFileMapping(files)
-	require.Equal(3, len(result))
+	require.Equal(4, len(result))
 	third, exists := result["third.md"]
 	require.True(exists, "third.md should be in the map")
 	require.Equal("third.md", third.OriginalName)
@@ -23,6 +24,9 @@ func TestCreateFileMapping(t *testing.T) {
 	require.True(exists, "first.md should be in the map")
 	require.Equal("First.md", first.OriginalName)
 	require.Equal("First", first.Title)
+	datefile, exists := result["2020-04-26.md"]
+	require.True(exists, "Should have created date file as with the others")
+	require.True(datefile.IsDateFile, "Should be marked as a date file")
 }
 
 func TestCollectBacklinksForFile(t *testing.T) {
@@ -92,10 +96,7 @@ date = 2019-08-26T19:34:48-04:00
 
 func TestFrontmatterForDatePages(t *testing.T) {
 	require := require.New(t)
-	file := markdownFile{
-		OriginalName: "2020-04-19.md",
-		BackLinks:    nil,
-	}
+	file := createMarkdownFile("2020-04-19.md", false)
 	inputText := `## This is an example
 
 ... of a typical date page.
@@ -103,9 +104,9 @@ func TestFrontmatterForDatePages(t *testing.T) {
 	scanner := bufio.NewScanner(strings.NewReader(inputText))
 	writer := bytes.Buffer{}
 	file.scanner = scanner
-	err := extractFrontmatter(&file, scanner)
+	err := extractFrontmatter(file, scanner)
 	require.Nil(err)
-	err = adjustFrontmatter(&file, &writer)
+	err = adjustFrontmatter(file, &writer)
 	require.Nil(err)
 	require.Equal("## This is an example", file.firstLine)
 	output := writer.String()

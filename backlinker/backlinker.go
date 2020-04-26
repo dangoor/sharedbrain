@@ -5,12 +5,6 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	wikilinks "github.com/dangoor/goldmark-wikilinks"
-	"github.com/naoina/toml"
-	"github.com/yuin/goldmark"
-	"github.com/yuin/goldmark/parser"
-	"github.com/yuin/goldmark/text"
-	"github.com/yuin/goldmark/util"
 	"io"
 	"io/ioutil"
 	"log"
@@ -19,6 +13,13 @@ import (
 	"regexp"
 	"strings"
 	"time"
+
+	wikilinks "github.com/dangoor/goldmark-wikilinks"
+	"github.com/naoina/toml"
+	"github.com/yuin/goldmark"
+	"github.com/yuin/goldmark/parser"
+	"github.com/yuin/goldmark/text"
+	"github.com/yuin/goldmark/util"
 )
 
 // backlink is a link to a given markdownFile from another
@@ -36,13 +37,14 @@ type markdownFile struct {
 
 	// Title defaults to a variation of the filename but can be overridden
 	// in metadata.
-	Title     string
-	BackLinks []backlink
-	IsNew     bool
-	newData   *bytes.Buffer
-	metadata  map[string]interface{}
-	firstLine string
-	scanner   *bufio.Scanner
+	Title      string
+	BackLinks  []backlink
+	IsNew      bool
+	IsDateFile bool
+	newData    *bytes.Buffer
+	metadata   map[string]interface{}
+	firstLine  string
+	scanner    *bufio.Scanner
 }
 
 // getFileList retrieves the list of markdown filenames for the source directory.
@@ -63,11 +65,17 @@ func getFileList(sourceDir string) ([]string, error) {
 
 // createMarkdownFile safely creates a markdownFile struct
 func createMarkdownFile(originalFileName string, isNew bool) *markdownFile {
+	isDateFile, err := regexp.MatchString(`\d\d\d\d-\d\d-\d\d.md`, originalFileName)
+	if err != nil {
+		panic(fmt.Sprintf("Error when parsing date regex: %v", err))
+	}
+
 	return &markdownFile{
 		OriginalName: originalFileName,
 		Title:        removeExtension(originalFileName),
 		BackLinks:    []backlink{},
 		IsNew:        isNew,
+		IsDateFile:   isDateFile,
 		newData:      bytes.NewBuffer([]byte{}),
 		metadata:     make(map[string]interface{}),
 	}
@@ -204,12 +212,7 @@ func extractFrontmatter(file *markdownFile, scanner *bufio.Scanner) error {
 func adjustFrontmatter(file *markdownFile, writer io.Writer) error {
 	meta := file.metadata
 
-	isDateFile, err := regexp.MatchString(`\d\d\d\d-\d\d-\d\d.md`, file.OriginalName)
-	if err != nil {
-		return err
-	}
-
-	if isDateFile {
+	if file.IsDateFile {
 		_, hasTitle := meta["title"]
 		plainFilename := removeExtension(file.OriginalName)
 		if !hasTitle {
@@ -366,12 +369,30 @@ func generateFileData(sourceDir string, fileMap map[string]*markdownFile) error 
 		}
 	}
 
+	// Process all of the date files first, in order to improve the reliability of
+	// finding a date for files that don't have them (especially the files
+	// which are generated just for backlinks).
+	// See https://github.com/dangoor/sharedbrain/issues/2
 	for _, file := range fileMap {
-		err := adjustFrontmatter(file, file.newData)
-		if err != nil {
-			return err
+		if file.IsDateFile {
+			err := adjustFrontmatter(file, file.newData)
+			if err != nil {
+				return err
+			}
 		}
-		err = convertLinks(file.firstLine, file.scanner, fileMap, file.newData)
+	}
+
+	for _, file := range fileMap {
+		// We still need to adjust frontmatter for non-date files
+		if !file.IsDateFile {
+			err := adjustFrontmatter(file, file.newData)
+			if err != nil {
+				return err
+			}
+		}
+
+		// All files need their links converted
+		err := convertLinks(file.firstLine, file.scanner, fileMap, file.newData)
 		if err != nil {
 			return err
 		}
