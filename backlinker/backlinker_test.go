@@ -226,24 +226,38 @@ func TestConvertLinks(t *testing.T) {
 }
 
 func Test_addBacklinks(t *testing.T) {
+	require := require.New(t)
 	type args struct {
 		file    *markdownFile
 		fileMap map[string]*markdownFile
 	}
 	fileMap := make(map[string]*markdownFile)
-	fileMap["first.md"] = &markdownFile{
-		OriginalName: "First.md",
-		BackLinks:    make([]backlink, 0),
-	}
-	fileMap["second.md"] = &markdownFile{
-		OriginalName: "Second.md",
-		Title:        "Being The Second",
-		BackLinks:    make([]backlink, 0),
-	}
+	fileMap["first.md"] = createMarkdownFile("First.md", false)
+	fileMap["second.md"] = createMarkdownFile("Second.md", false)
+	fileMap["second.md"].Title = "Being The Second"
 	fileMap["first.md"].BackLinks = append(fileMap["first.md"].BackLinks, backlink{
 		OtherFile: fileMap["second.md"],
 		Context:   "This has a [[first]] link.",
 	})
+
+	fileMap["third.md"] = createMarkdownFile("Third.md", false)
+	fileMap["2020-04-21.md"] = createMarkdownFile("2020-04-21.md", false)
+	frontmatterWriter := bytes.Buffer{}
+	err := adjustFrontmatter(fileMap["2020-04-21.md"], &frontmatterWriter)
+	require.Nil(err, "Should not get an error when adjusting frontmatter")
+	fileMap["2020-04-24.md"] = createMarkdownFile("2020-04-24.md", false)
+	err = adjustFrontmatter(fileMap["2020-04-24.md"], &frontmatterWriter)
+	require.Nil(err, "Should not get an error when adjusting frontmatter")
+
+	fileMap["third.md"].BackLinks = append(fileMap["third.md"].BackLinks, backlink{
+		OtherFile: fileMap["2020-04-21.md"],
+		Context:   "This links to [[Third]].",
+	})
+	fileMap["third.md"].BackLinks = append(fileMap["third.md"].BackLinks, backlink{
+		OtherFile: fileMap["2020-04-24.md"],
+		Context:   "Also has a [[third]] link.",
+	})
+
 	tests := []struct {
 		name       string
 		args       args
@@ -270,6 +284,22 @@ func Test_addBacklinks(t *testing.T) {
 
 * [Being The Second](../second/)
     * This has a [first](../first/) link.
+`,
+			wantErr: false,
+		},
+		{
+			name: "Third has two date backlinks that should be sorted",
+			args: args{
+				file:    fileMap["third.md"],
+				fileMap: fileMap,
+			},
+			wantWriter: `
+## Backlinks
+
+* [2020-04-24](../2020-04-24/)
+    * Also has a [third](../third/) link.
+* [2020-04-21](../2020-04-21/)
+    * This links to [Third](../third/).
 `,
 			wantErr: false,
 		},

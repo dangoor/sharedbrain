@@ -11,6 +11,7 @@ import (
 	"os"
 	"path"
 	"regexp"
+	"sort"
 	"strings"
 	"time"
 
@@ -333,6 +334,28 @@ func addBacklinks(file *markdownFile, fileMap map[string]*markdownFile, writer i
 ## Backlinks
 
 `))
+	sort.Slice(file.BackLinks, func(i, j int) bool {
+		bl1 := file.BackLinks[i]
+		bl2 := file.BackLinks[j]
+
+		dateField1, hasDateField1 := bl1.OtherFile.metadata["date"]
+		dateField2, hasDateField2 := bl2.OtherFile.metadata["date"]
+
+		if hasDateField1 && !hasDateField2 {
+			return true
+		} else if !hasDateField1 && hasDateField2 {
+			return false
+		}
+
+		if hasDateField1 && hasDateField2 {
+			date1 := dateField1.(time.Time)
+			date2 := dateField2.(time.Time)
+			return date1.After(date2)
+		}
+
+		return strings.Compare(bl1.OtherFile.Title, bl2.OtherFile.Title) < 0
+	})
+
 	for _, backlink := range file.BackLinks {
 		title := backlink.OtherFile.Title
 		link := createHugoLink(backlink.OtherFile.OriginalName)
