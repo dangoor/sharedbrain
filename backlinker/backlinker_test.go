@@ -111,7 +111,7 @@ func TestFrontmatterForDatePages(t *testing.T) {
 	require.Equal("## This is an example", file.firstLine)
 	output := writer.String()
 	require.True(strings.HasPrefix(output, "+++\n"))
-	require.Contains(output, "date = 2020-04-19T21:00:00Z\n")
+	require.Contains(output, "date = 2020-04-19T08:00:00Z\n")
 	require.Contains(output, "title = \"2020-04-19\"\n")
 }
 

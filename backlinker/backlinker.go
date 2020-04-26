@@ -221,7 +221,7 @@ func adjustFrontmatter(file *markdownFile, writer io.Writer) error {
 		}
 		_, hasDate := meta["date"]
 		if !hasDate {
-			datetime, err := time.Parse(time.RFC3339, plainFilename+"T21:00:00Z")
+			datetime, err := time.Parse(time.RFC3339, plainFilename+"T08:00:00Z")
 			if err != nil {
 				return err
 			}

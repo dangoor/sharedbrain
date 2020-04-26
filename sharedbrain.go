@@ -6,7 +6,7 @@ import (
 	"sharedbrain/backlinker"
 )
 
-const VERSION = "1.1.1"
+const VERSION = "1.1.2"
 
 type builder struct {
 	dist bool
